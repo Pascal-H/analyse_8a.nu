@@ -61,8 +61,11 @@ def preview_tables(table_names, limit, connection):
         # Fetch data based on query string for the current table (cur_table)
         cur_result = pd.read_sql_query(cur_query, con = connection)
         
-        # Append DataFrame with current data set to list with all results
-        fetched_tables.append(cur_result)
+        # Append DataFrame with current data set to list with all results.
+        # Have to append table content and name as tuple, because some
+        # column names are called 'name' and the DataFrame attribute 'name'
+        # is not unambiguous
+        fetched_tables.append((cur_result, cur_table))
     
     # Return list with DataFrames of all tables
     return fetched_tables
@@ -166,44 +169,8 @@ def get_column_info(tables_names, connection):
 conn = sqlite3.connect('../8a_climbing/database.sqlite')
 
 
-## Manually query the database ##
-
-# Simple query to get a first impression of the table 'user'
-query_distinct = "SELECT * FROM user LIMIT 50;"
-
-# Query to get the meta-info of the table 'user
-query_pragma = "PRAGMA table_info(user);"
-
-# Fetch the data from the database and read it into a DataFrame 
-result_distinct = pd.read_sql_query(query_distinct, conn)
-
-# Fetch the meta-data
-result_pragma = pd.read_sql_query(query_pragma, conn)
-
-# Print the header of the DataFrame to get a first impression
-print(result_distinct.head(10))
-
-# Print the meta-data:
-# cid = column id; name = column name; type = data tpye;
-# notnull = must have values; dflt_value = default-value; pk = primary key
-print(result_pragma)
-
-
-## Use function to peak into all tables ##
-# List with all table names of 8a.nu database
-table_names = ["ascent", "grade", "method", "user"]
-# Limit the number of rows to return from each table
-limit = 100
-
-# Call function and fetch list of DataFrames with data for each table
-preview_list = preview_tables(table_names, limit, conn)
-
-# Print the head of all data sets of all tables in the 8a.nu database
-for cur_table_data in preview_list:
-    print(cur_table_data.head())
-
-
 ## Automatically fetch all table names and get the column metadata ##
+print('\n*** Metadata from all tables ***\n')
 
 # Get list with all table names from the connected database
 table_names_lst = get_table_names(conn)
@@ -212,22 +179,44 @@ table_names_lst = get_table_names(conn)
 tables_dct = get_column_info(table_names_lst, conn)
 
 # Print the column attributes from the 'first' entry of the dictionary
-column_attributes = list(tables_dct["ascent"].columns.values)
-print(column_attributes)
+print('Column attributes extracted from the table "Ascent":')
+# Have to separately add the index of the table ('cid') and the column names
+column_attributes = []
+column_attributes.append(tables_dct["ascent"].index.name)
+column_attributes.extend(list(tables_dct["ascent"].columns.values))
+# Print the list with all column names
+print(column_attributes, '\n')
 # Legend for the abreviation for the column metadata labels
-attributes_legend =  "Legend for the column attributes:\n"
-attributes_legend += "cid:        column identifier\n"
-attributes_legend += "name:       column name\n"
-attributes_legend += "type:       data type\n"
-attributes_legend += "notnull:    must contain values\n"
-attributes_legend += "dflt_value: default value\n"
-attributes_legend += "pk:         primary key marker\n\n"
-print(attributes_legend)
+attributes_legend =  'Legend for the column attributes:\n'
+attributes_legend += 'cid:        column identifier\n'
+attributes_legend += 'name:       column name\n'
+attributes_legend += 'type:       data type\n'
+attributes_legend += 'notnull:    must contain values\n'
+attributes_legend += 'dflt_value: default value\n'
+attributes_legend += 'pk:         primary key marker'
+print(attributes_legend, '\n\n')
 
 # Print the Table name (key) and the column metadata (value) for all tables
+print('*** Column names and configuration for all tables ***\n')
 for cur_table in tables_dct.items():
-    print("Table Name: " + str(cur_table[0]))
-    print("Column Data:\n" + str(cur_table[1]) + "\n\n")
+    print('Table Name: ' + str(cur_table[0]))
+    print('Column Data:\n' + str(cur_table[1]) + '\n\n')
+
+
+## Use function to peak into all tables ##
+
+print('*** Preview the first rows of all tables ***\n')
+# Limit the number of rows to return from each table
+limit = 500
+
+# Previously: obtained table_names = list with all tables in the database
+# Call function and fetch list of DataFrames with data for each table
+preview_list = preview_tables(table_names_lst, limit, conn)
+
+# Print the head of all data sets of all tables in the 8a.nu database
+for cur_table_data in preview_list:
+    print('Table name:', cur_table_data[1])
+    print(cur_table_data[0].head(), '\n\n')
 
 
 # Close the connection to the SQLite database at the end of the session
